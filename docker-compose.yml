@@ -1,0 +1,43 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URI: postgres://${POSTGRES_USER:-msma}:${POSTGRES_PASSWORD:-msma_local_password}@postgres:5432/${POSTGRES_DB:-msma}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/storage
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    # Exposed to the host only for local development convenience (e.g.
+    # running `npm run dev` directly on the host against this container).
+    # Not required when both services run inside Compose.
+    # Mapped to 55432 on the host to avoid clashing with any pre-existing
+    # native Postgres installation already bound to the default 5432.
+    ports:
+      - "55432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-msma}
+      POSTGRES_USER: ${POSTGRES_USER:-msma}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-msma_local_password}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-msma}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  uploads_data:
